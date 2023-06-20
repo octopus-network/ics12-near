@@ -1,0 +1,47 @@
+[package]
+name        = "ics12-near"
+version     = "0.1.0"
+edition     = "2021"
+license     = "Apache-2.0"
+readme      = "README.md"
+keywords    = ["near", "ics12", "cosmos", "ibc"]
+repository  = "https://github.com/octopus-network/ics12-near.git"
+authors     = ["Octopus Network"]
+description = """
+    Implementation of the ICS12 client (for NEAR protocol).
+"""
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ibc = { version = "0.41.0", features = ["serde", "parity-scale-codec", "borsh"], default-features = false }
+ibc-proto = { version = "0.30.0", features = ["parity-scale-codec", "borsh"], default-features = false }
+prost = { version = "0.11", default-features = false }
+displaydoc = { version = "0.2", default-features = false }
+bytes = { version = "1.2.1", default-features = false }
+serde = { version = "1.0", default-features = false }
+sha2 = { version = "0.10.6", default-features = false }
+borsh = { version = "0.9" }
+elastic-array = { version = "0.11", default-features = false }
+bs58 = { version = "0.4" }
+byteorder = { version = "1.4" }
+ed25519-dalek = { version = "1" }
+
+[dev-dependencies]
+hex-literal = "0.4"
+
+[features]
+default = ["std", "v1"]
+std = [
+    "ibc/std",
+    "ibc-proto/std",
+    "prost/std",
+    "displaydoc/std",
+    "bytes/std",
+    "serde/std",
+]
+v1 = []
+
+[patch.crates-io]
+ibc = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "main" }
+ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branch = "add-ics12-near-proto" }
