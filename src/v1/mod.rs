@@ -7,11 +7,10 @@ pub mod client_state;
 pub mod consensus_state;
 pub mod error;
 pub mod header;
+pub mod misbehaviour;
 pub mod near_types;
 
 pub(crate) const NEAR_CLIENT_TYPE: &str = "12-near";
-
-pub type Height = u64;
 
 /// Returns the tendermint `ClientType`
 pub fn client_type() -> ClientType {

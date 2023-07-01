@@ -1,8 +1,8 @@
 pub mod nibble_slice;
 
 use self::nibble_slice::NibbleSlice;
-use super::{hash::sha256, CryptoHash};
 use super::super::error::Error as StateProofVerificationError;
+use super::{hash::sha256, CryptoHash};
 use alloc::vec::Vec;
 use borsh::maybestd::{
     io::{Cursor, Error, ErrorKind, Read},
@@ -263,7 +263,7 @@ pub fn verify_not_in_state(
     key: &[u8],
     nodes: &Vec<RawTrieNodeWithSize>,
     state_root: &CryptoHash,
-) -> Result<bool, StateProofVerificationError> {
+) -> Result<(), StateProofVerificationError> {
     let mut v = Vec::new();
     let mut hash_node = |node: &RawTrieNodeWithSize| {
         v.clear();
@@ -288,10 +288,10 @@ pub fn verify_not_in_state(
 
                 let nib = &NibbleSlice::from_encoded(&node_key).0;
                 if &key != nib {
-                    return Ok(true);
+                    return Ok(());
                 }
 
-                return Ok(false);
+                return Err(StateProofVerificationError::SpecifiedKeyHasValueInState);
             }
             RawTrieNodeWithSize {
                 node: RawTrieNode::Extension(node_key, child_hash),
@@ -306,7 +306,7 @@ pub fn verify_not_in_state(
 
                 let nib = NibbleSlice::from_encoded(&node_key).0;
                 if !key.starts_with(&nib) {
-                    return Ok(true);
+                    return Ok(());
                 }
                 key = key.mid(nib.len());
             }
@@ -321,7 +321,12 @@ pub fn verify_not_in_state(
                 }
 
                 if key.is_empty() {
-                    return Ok(node_value.is_none());
+                    match node_value {
+                        Some(_) => {
+                            return Err(StateProofVerificationError::SpecifiedKeyHasValueInState)
+                        }
+                        None => return Ok(()),
+                    }
                 }
 
                 let index = key.at(0);
@@ -331,7 +336,7 @@ pub fn verify_not_in_state(
                         expected_hash = *child_hash;
                     }
                     None => {
-                        return Ok(true);
+                        return Ok(());
                     }
                 }
             }

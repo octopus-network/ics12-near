@@ -1,15 +1,17 @@
 use super::{
     error::Error,
     near_types::{hash::CryptoHash, LightClientBlock},
-    Height,
 };
 use crate::prelude::*;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytes::Buf;
-use ibc::core::{ics02_client::error::ClientError, timestamp::Timestamp};
+use ibc::{
+    core::{ics02_client::error::ClientError, timestamp::Timestamp},
+    Height,
+};
 use ibc_proto::{
     google::protobuf::Any,
-    ibc::lightclients::near::v1::{CryptoHash as ProtoCryptoHash, Header as ProtoHeader},
+    ibc::lightclients::near::v1::{CryptoHash as RawCryptoHash, Header as RawHeader},
     protobuf::Protobuf,
 };
 use prost::Message;
@@ -26,10 +28,6 @@ pub struct Header {
 
 impl Header {
     ///
-    pub fn height(&self) -> Height {
-        self.light_client_block.inner_lite.height
-    }
-    ///
     pub fn epoch_id(&self) -> CryptoHash {
         self.light_client_block.inner_lite.epoch_id.0
     }
@@ -37,26 +35,29 @@ impl Header {
     pub fn next_epoch_id(&self) -> CryptoHash {
         self.light_client_block.inner_lite.next_epoch_id.0
     }
+    ///
+    pub fn timestamp(&self) -> u64 {
+        self.light_client_block.inner_lite.timestamp
+    }
 }
 
 impl ibc::core::ics02_client::header::Header for Header {
-    fn height(&self) -> ibc::Height {
-        ibc::Height::new(0, self.light_client_block.inner_lite.height)
+    fn height(&self) -> Height {
+        Height::new(0, self.light_client_block.inner_lite.height)
             .expect("Invalid height in NEAR header")
     }
 
     fn timestamp(&self) -> Timestamp {
-        Timestamp::from_nanoseconds(self.light_client_block.inner_lite.timestamp)
-            .expect("Invalid timestamp in NEAR header")
+        Timestamp::from_nanoseconds(self.timestamp()).expect("Invalid timestamp in NEAR header")
     }
 }
 
-impl Protobuf<ProtoHeader> for Header {}
+impl Protobuf<RawHeader> for Header {}
 
-impl TryFrom<ProtoHeader> for Header {
+impl TryFrom<RawHeader> for Header {
     type Error = Error;
 
-    fn try_from(value: ProtoHeader) -> Result<Self, Self::Error> {
+    fn try_from(value: RawHeader) -> Result<Self, Self::Error> {
         Ok(Self {
             light_client_block: LightClientBlock::try_from_slice(&value.light_client_block)
                 .map_err(|e| Error::InvalidHeader {
@@ -77,14 +78,14 @@ impl TryFrom<ProtoHeader> for Header {
     }
 }
 
-impl From<Header> for ProtoHeader {
+impl From<Header> for RawHeader {
     fn from(value: Header) -> Self {
         Self {
             light_client_block: value.light_client_block.try_to_vec().unwrap(),
             prev_state_root_of_chunks: value
                 .prev_state_root_of_chunks
                 .into_iter()
-                .map(|ch| ProtoCryptoHash {
+                .map(|ch| RawCryptoHash {
                     raw_data: ch.try_to_vec().unwrap(),
                 })
                 .collect(),
@@ -113,11 +114,11 @@ impl From<Header> for Any {
     fn from(header: Header) -> Self {
         Any {
             type_url: NEAR_HEADER_TYPE_URL.to_string(),
-            value: Protobuf::<ProtoHeader>::encode_vec(&header),
+            value: Protobuf::<RawHeader>::encode_vec(&header),
         }
     }
 }
 
 pub fn decode_header<B: Buf>(buf: B) -> Result<Header, Error> {
-    ProtoHeader::decode(buf).map_err(Error::Decode)?.try_into()
+    RawHeader::decode(buf).map_err(Error::Decode)?.try_into()
 }

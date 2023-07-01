@@ -2,12 +2,16 @@
 #[cfg(feature = "std")]
 extern crate std;
 
-use super::Height;
 use crate::prelude::*;
 use core::time::Duration;
 use displaydoc::Display;
-use ibc::core::ics02_client::error::ClientError;
-use ibc::core::ics24_host::identifier::{ChainId, ClientId};
+use ibc::{
+    core::{
+        ics02_client::error::ClientError,
+        ics24_host::identifier::{ChainId, ClientId},
+    },
+    Height,
+};
 
 /// The main error type
 #[derive(Debug, Display)]
@@ -88,6 +92,8 @@ pub enum Error {
     InvalidProofData { proof_index: u16 },
     /// invalid proof data length
     InvalidProofDataLength,
+    /// specified key has value in state
+    SpecifiedKeyHasValueInState,
     /// failed to deserialize with borsh
     BorshDeserializeError,
     /// failed to serialize with borsh
