@@ -74,10 +74,8 @@ impl RawTrieNode {
                     pos <<= 1;
                 }
                 out.extend(bitmap.to_le_bytes());
-                for child in children.iter() {
-                    if let Some(hash) = child {
-                        out.extend(hash.as_bytes());
-                    }
+                for child in children.iter().flatten() {
+                    out.extend(child.as_bytes());
                 }
             }
             // size <= 1 + 4 + key_length + 32
@@ -154,7 +152,7 @@ impl RawTrieNodeWithSize {
 
 pub fn verify_state_proof(
     key: &[u8],
-    nodes: &Vec<RawTrieNodeWithSize>,
+    nodes: &[RawTrieNodeWithSize],
     value: &[u8],
     state_root: &CryptoHash,
 ) -> Result<(), StateProofVerificationError> {
@@ -165,22 +163,21 @@ pub fn verify_state_proof(
         CryptoHash(sha256(&v))
     };
     let mut key = NibbleSlice::new(key);
-    let mut expected_hash = state_root.clone();
-    let mut node_index: u16 = 0;
+    let mut expected_hash = *state_root;
 
-    for node in nodes.iter() {
+    for (node_index, node) in (0_u16..).zip(nodes.iter()) {
         match node {
             RawTrieNodeWithSize {
                 node: RawTrieNode::Leaf(node_key, _, value_hash),
                 ..
             } => {
-                if hash_node(&node) != expected_hash {
+                if hash_node(node) != expected_hash {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
                     });
                 }
 
-                let nib = &NibbleSlice::from_encoded(&node_key).0;
+                let nib = &NibbleSlice::from_encoded(node_key).0;
                 if &key != nib {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
@@ -200,14 +197,14 @@ pub fn verify_state_proof(
                 node: RawTrieNode::Extension(node_key, child_hash),
                 ..
             } => {
-                if hash_node(&node) != expected_hash {
+                if hash_node(node) != expected_hash {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
                     });
                 }
                 expected_hash = *child_hash;
 
-                let nib = NibbleSlice::from_encoded(&node_key).0;
+                let nib = NibbleSlice::from_encoded(node_key).0;
                 if !key.starts_with(&nib) {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
@@ -219,7 +216,7 @@ pub fn verify_state_proof(
                 node: RawTrieNode::Branch(children, node_value),
                 ..
             } => {
-                if hash_node(&node) != expected_hash {
+                if hash_node(node) != expected_hash {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
                     });
@@ -254,14 +251,13 @@ pub fn verify_state_proof(
                 }
             }
         }
-        node_index += 1;
     }
     Err(StateProofVerificationError::InvalidProofDataLength)
 }
 
 pub fn verify_not_in_state(
     key: &[u8],
-    nodes: &Vec<RawTrieNodeWithSize>,
+    nodes: &[RawTrieNodeWithSize],
     state_root: &CryptoHash,
 ) -> Result<(), StateProofVerificationError> {
     let mut v = Vec::new();
@@ -271,22 +267,21 @@ pub fn verify_not_in_state(
         CryptoHash(sha256(&v))
     };
     let mut key = NibbleSlice::new(key);
-    let mut expected_hash = state_root.clone();
-    let mut node_index: u16 = 0;
+    let mut expected_hash = *state_root;
 
-    for node in nodes.iter() {
+    for (node_index, node) in (0_u16..).zip(nodes.iter()) {
         match node {
             RawTrieNodeWithSize {
                 node: RawTrieNode::Leaf(node_key, _, _),
                 ..
             } => {
-                if hash_node(&node) != expected_hash {
+                if hash_node(node) != expected_hash {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
                     });
                 }
 
-                let nib = &NibbleSlice::from_encoded(&node_key).0;
+                let nib = &NibbleSlice::from_encoded(node_key).0;
                 if &key != nib {
                     return Ok(());
                 }
@@ -297,14 +292,14 @@ pub fn verify_not_in_state(
                 node: RawTrieNode::Extension(node_key, child_hash),
                 ..
             } => {
-                if hash_node(&node) != expected_hash {
+                if hash_node(node) != expected_hash {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
                     });
                 }
                 expected_hash = *child_hash;
 
-                let nib = NibbleSlice::from_encoded(&node_key).0;
+                let nib = NibbleSlice::from_encoded(node_key).0;
                 if !key.starts_with(&nib) {
                     return Ok(());
                 }
@@ -314,7 +309,7 @@ pub fn verify_not_in_state(
                 node: RawTrieNode::Branch(children, node_value),
                 ..
             } => {
-                if hash_node(&node) != expected_hash {
+                if hash_node(node) != expected_hash {
                     return Err(StateProofVerificationError::InvalidProofData {
                         proof_index: node_index,
                     });
@@ -341,7 +336,6 @@ pub fn verify_not_in_state(
                 }
             }
         }
-        node_index += 1;
     }
     Err(StateProofVerificationError::InvalidProofDataLength)
 }

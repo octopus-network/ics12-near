@@ -14,8 +14,8 @@ description = """
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ibc = { version = "0.41.0", features = ["serde", "parity-scale-codec", "borsh"], default-features = false }
-ibc-proto = { version = "0.30.0", features = ["parity-scale-codec", "borsh"], default-features = false }
+ibc = { version = "0.42.0", features = ["parity-scale-codec", "borsh"], default-features = false }
+ibc-proto = { version = "0.32.0", features = ["parity-scale-codec", "borsh"], default-features = false }
 prost = { version = "0.11", default-features = false }
 displaydoc = { version = "0.2", default-features = false }
 bytes = { version = "1.2.1", default-features = false }
@@ -31,7 +31,7 @@ ed25519-dalek = { version = "1" }
 hex-literal = "0.4"
 
 [features]
-default = ["std", "v1"]
+default = ["std", "v1", "serde"]
 std = [
     "ibc/std",
     "ibc-proto/std",
@@ -41,7 +41,8 @@ std = [
     "serde/std",
 ]
 v1 = []
+serde = ["serde/std", "ibc/serde"]
 
 [patch.crates-io]
-ibc = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "main" }
-ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branch = "add-ics12-near-proto" }
+ibc = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "octopus-relayer-v0.42.0" }
+ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branch = "octopus-relauer-v0.32.0-with-ics12-near" }

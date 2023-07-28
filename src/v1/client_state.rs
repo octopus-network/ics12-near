@@ -5,6 +5,8 @@ use super::{
     consensus_state::ConsensusState as NearConsensusState, error::Error as Ics12Error,
     header::Header as NearHeader, misbehaviour::Misbehaviour as NearMisbehaviour,
 };
+use crate::v1::context::ExecutionContext as NearExecutionContext;
+use crate::v1::context::ValidationContext as NearValidationContext;
 use crate::{
     prelude::*,
     v1::near_types::{
@@ -14,26 +16,24 @@ use crate::{
 };
 use borsh::BorshDeserialize;
 use core::{cmp::max, time::Duration};
+use ibc::core::ics02_client::client_state::{
+    ClientStateCommon, ClientStateExecution, ClientStateValidation, UpdateKind,
+};
+use ibc::core::ics02_client::ClientExecutionContext;
 use ibc::{
     core::{
         ics02_client::{
-            client_state::{ClientState as Ics2ClientState, UpdateKind, UpdatedState},
-            client_type::ClientType,
-            consensus_state::ConsensusState,
-            error::ClientError,
-            header::Header,
+            client_type::ClientType, consensus_state::ConsensusState, error::ClientError,
         },
         ics23_commitment::{
             commitment::{CommitmentPrefix, CommitmentProofBytes, CommitmentRoot},
             error::CommitmentError,
-            merkle::MerkleProof,
         },
         ics24_host::{
             identifier::ClientId,
             path::{ClientConsensusStatePath, ClientStatePath, Path},
         },
         timestamp::ZERO_DURATION,
-        ExecutionContext, ValidationContext,
     },
     Height,
 };
@@ -97,9 +97,20 @@ impl ClientState {
     }
 }
 
-impl Ics2ClientState for ClientState {
+impl ClientStateCommon for ClientState {
+    fn verify_consensus_state(&self, consensus_state: Any) -> Result<(), ClientError> {
+        let near_consensus_state = NearConsensusState::try_from(consensus_state)?;
+        if near_consensus_state.root().is_empty() {
+            return Err(ClientError::Other {
+                description: "empty commitment root".into(),
+            });
+        };
+
+        Ok(())
+    }
+
     fn client_type(&self) -> ClientType {
-        ClientType::new("near".to_string()).unwrap()
+        crate::v1::client_type()
     }
 
     fn latest_height(&self) -> Height {
@@ -129,153 +140,21 @@ impl Ics2ClientState for ClientState {
         elapsed > self.trusting_period
     }
 
-    fn initialise(&self, consensus_state: Any) -> Result<Box<dyn ConsensusState>, ClientError> {
-        let near_consensus_state = NearConsensusState::try_from(consensus_state)?;
-        if near_consensus_state.root().is_empty() {
-            return Err(ClientError::Other {
-                description: "empty commitment root".into(),
-            });
-        };
-        Ok(Box::new(near_consensus_state))
-    }
-
-    fn verify_client_message(
-        &self,
-        ctx: &dyn ValidationContext,
-        client_id: &ClientId,
-        client_message: Any,
-        update_kind: &UpdateKind,
-    ) -> Result<(), ClientError> {
-        match update_kind {
-            UpdateKind::UpdateClient => {
-                let header = NearHeader::try_from(client_message)?;
-                self.verify_header(ctx, client_id, &header)
-            }
-            UpdateKind::SubmitMisbehaviour => {
-                let misbehaviour = NearMisbehaviour::try_from(client_message)?;
-                self.verify_misbehaviour(ctx, client_id, &misbehaviour)
-            }
-        }
-    }
-
-    fn check_for_misbehaviour(
-        &self,
-        ctx: &dyn ValidationContext,
-        client_id: &ClientId,
-        client_message: Any,
-        update_kind: &UpdateKind,
-    ) -> Result<bool, ClientError> {
-        match update_kind {
-            UpdateKind::UpdateClient => {
-                let header = NearHeader::try_from(client_message)?;
-                self.check_for_misbehaviour_update_client(ctx, client_id, &header)
-            }
-            UpdateKind::SubmitMisbehaviour => {
-                let misbehaviour = NearMisbehaviour::try_from(client_message)?;
-                self.check_for_misbehaviour_misbehaviour(&misbehaviour)
-            }
-        }
-    }
-
-    fn update_state(
-        &self,
-        ctx: &mut dyn ExecutionContext,
-        client_id: &ClientId,
-        header: Any,
-    ) -> Result<Vec<Height>, ClientError> {
-        let header = NearHeader::try_from(header)?;
-        let header_height = header.height();
-
-        let maybe_existing_consensus_state = {
-            let path_at_header_height = ClientConsensusStatePath::new(client_id, &header_height);
-
-            ctx.consensus_state(&path_at_header_height).ok()
-        };
-
-        if maybe_existing_consensus_state.is_some() {
-            // if we already had the header installed by a previous relayer
-            // then this is a no-op.
-            //
-            // Do nothing.
-        } else {
-            let maybe_prev_cs = ctx.prev_consensus_state(client_id, &header.height())?;
-
-            let new_consensus_state = match maybe_prev_cs {
-                Some(prev_cs) => {
-                    // New header timestamp cannot occur *before* the
-                    // previous consensus state's height
-                    let prev_cs = downcast_near_consensus_state(prev_cs.as_ref())?;
-                    NearConsensusState::new(
-                        prev_cs.get_block_producers_of(&header.epoch_id()),
-                        header,
-                    )
-                }
-                None => NearConsensusState::new(None, header),
-            };
-            let new_client_state = self
-                .clone()
-                .with_header(&new_consensus_state.header)?
-                .into_box();
-
-            ctx.store_update_time(
-                client_id.clone(),
-                new_client_state.latest_height(),
-                ctx.host_timestamp()?,
-            )?;
-            ctx.store_update_height(
-                client_id.clone(),
-                new_client_state.latest_height(),
-                ctx.host_height()?,
-            )?;
-
-            ctx.store_consensus_state(
-                ClientConsensusStatePath::new(client_id, &new_client_state.latest_height()),
-                new_consensus_state.into_box(),
-            )?;
-            ctx.store_client_state(ClientStatePath::new(client_id), new_client_state)?;
-        }
-
-        let updated_heights = vec![header_height];
-        Ok(updated_heights)
-    }
-
-    fn update_state_on_misbehaviour(
-        &self,
-        ctx: &mut dyn ExecutionContext,
-        client_id: &ClientId,
-        _client_message: Any,
-        _update_kind: &UpdateKind,
-    ) -> Result<(), ClientError> {
-        let frozen_client_state = self
-            .clone()
-            .with_frozen_height(Height::new(0, 1).unwrap())
-            .into_box();
-
-        ctx.store_client_state(ClientStatePath::new(client_id), frozen_client_state)?;
-
-        Ok(())
-    }
-
+    /// Perform client-specific verifications and check all data in the new
+    /// client state to be the same across all valid Tendermint clients for the
+    /// new chain.
+    ///
+    /// You can learn more about how to upgrade IBC-connected SDK chains in
+    /// [this](https://ibc.cosmos.network/main/ibc/upgrades/quick-guide.html)
+    /// guide
     fn verify_upgrade_client(
         &self,
         _upgraded_client_state: Any,
         _upgraded_consensus_state: Any,
-        _proof_upgrade_client: MerkleProof,
-        _proof_upgrade_consensus_state: MerkleProof,
+        _proof_upgrade_client: CommitmentProofBytes,
+        _proof_upgrade_consensus_state: CommitmentProofBytes,
         _root: &CommitmentRoot,
     ) -> Result<(), ClientError> {
-        // In the NEAR Protocol, this function's parameter is not available because
-        // state proofs are based on the Merkle Patricia Tree instead of the Merkle Tree.
-        Err(ClientError::Other {
-            description: "This function is NOT available in NEAR client.".to_string(),
-        })
-    }
-
-    fn update_state_with_upgrade_client(
-        &self,
-        _upgraded_client_state: Any,
-        _upgraded_consensus_state: Any,
-    ) -> Result<UpdatedState, ClientError> {
         // Since `verify_upgrade_client` function is unavailable in the NEAR Protocol,
         // this function should also not be allowed to be used in order to ensure that
         // all state updates are properly verified.
@@ -299,7 +178,7 @@ impl Ics2ClientState for ClientState {
                 DecodeError::new(format!("Invalid commitment proof: {:?}", e)),
             ))
         })?;
-        if proofs.0.len() == 0 {
+        if proofs.0.is_empty() {
             return Err(ClientError::InvalidCommitmentProof(
                 CommitmentError::EmptyMerkleProof,
             ));
@@ -333,11 +212,9 @@ impl Ics2ClientState for ClientState {
         let mut key = vec![];
         key.extend(prefix.as_bytes());
         key.extend(path.to_string().into_bytes());
-        return verify_state_proof(&key, &nodes, &value, &root_hash).map_err(|e| {
-            ClientError::Other {
-                description: format!("{:?}", e),
-            }
-        });
+        verify_state_proof(&key, &nodes, &value, &root_hash).map_err(|e| ClientError::Other {
+            description: format!("{:?}", e),
+        })
     }
 
     fn verify_non_membership(
@@ -354,7 +231,7 @@ impl Ics2ClientState for ClientState {
                 DecodeError::new(format!("Invalid commitment proof: {:?}", e)),
             ))
         })?;
-        if proofs.0.len() == 0 {
+        if proofs.0.is_empty() {
             return Err(ClientError::InvalidCommitmentProof(
                 CommitmentError::EmptyMerkleProof,
             ));
@@ -388,9 +265,145 @@ impl Ics2ClientState for ClientState {
         let mut key = vec![];
         key.extend(prefix.as_bytes());
         key.extend(path.to_string().into_bytes());
-        return verify_not_in_state(&key, &nodes, &root_hash).map_err(|e| ClientError::Other {
+        verify_not_in_state(&key, &nodes, &root_hash).map_err(|e| ClientError::Other {
             description: format!("{:?}", e),
-        });
+        })
+    }
+}
+
+impl<ClientValidationContext> ClientStateValidation<ClientValidationContext> for ClientState
+where
+    ClientValidationContext: NearValidationContext,
+{
+    fn verify_client_message(
+        &self,
+        ctx: &ClientValidationContext,
+        client_id: &ClientId,
+        client_message: Any,
+        update_kind: &UpdateKind,
+    ) -> Result<(), ClientError> {
+        match update_kind {
+            UpdateKind::UpdateClient => {
+                let header = NearHeader::try_from(client_message)?;
+                self.verify_header(ctx, client_id, &header)
+            }
+            UpdateKind::SubmitMisbehaviour => {
+                let misbehaviour = NearMisbehaviour::try_from(client_message)?;
+                self.verify_misbehaviour(ctx, client_id, misbehaviour)
+            }
+        }
+    }
+
+    fn check_for_misbehaviour(
+        &self,
+        ctx: &ClientValidationContext,
+        client_id: &ClientId,
+        client_message: Any,
+        update_kind: &UpdateKind,
+    ) -> Result<bool, ClientError> {
+        match update_kind {
+            UpdateKind::UpdateClient => {
+                let header = NearHeader::try_from(client_message)?;
+                self.check_for_misbehaviour_update_client(ctx, client_id, header)
+            }
+            UpdateKind::SubmitMisbehaviour => {
+                let misbehaviour = NearMisbehaviour::try_from(client_message)?;
+                self.check_for_misbehaviour_misbehaviour(&misbehaviour)
+            }
+        }
+    }
+}
+
+impl<E> ClientStateExecution<E> for ClientState
+where
+    E: NearExecutionContext,
+    <E as ClientExecutionContext>::AnyClientState: From<ClientState>,
+    <E as ClientExecutionContext>::AnyConsensusState: From<NearConsensusState>,
+{
+    fn initialise(
+        &self,
+        ctx: &mut E,
+        client_id: &ClientId,
+        consensus_state: Any,
+    ) -> Result<(), ClientError> {
+        let near_consensus_state = NearConsensusState::try_from(consensus_state)?;
+        if near_consensus_state.root().is_empty() {
+            return Err(ClientError::Other {
+                description: "empty commitment root".into(),
+            });
+        };
+
+        ctx.store_client_state(ClientStatePath::new(client_id), self.clone().into())?;
+        ctx.store_consensus_state(
+            ClientConsensusStatePath::new(client_id, &self.latest_height()),
+            near_consensus_state.into(),
+        )?;
+        Ok(())
+    }
+
+    // todo(davirain): refactor reference to [https://github.com/cosmos/ibc-rs/blob/b6ad8ce55954f2678b57caa0b94feaea3f8eddac/crates/ibc/src/clients/ics07_tendermint/client_state.rs#L493]
+    fn update_state(
+        &self,
+        ctx: &mut E,
+        client_id: &ClientId,
+        header: Any,
+    ) -> Result<Vec<Height>, ClientError> {
+        let header = NearHeader::try_from(header)?;
+        let header_height = header.height();
+
+        let maybe_existing_consensus_state = {
+            let path_at_header_height = ClientConsensusStatePath::new(client_id, &header_height);
+
+            ctx.consensus_state(&path_at_header_height).ok()
+        };
+
+        if maybe_existing_consensus_state.is_some() {
+            // if we already had the header installed by a previous relayer
+            // then this is a no-op.
+            //
+            // Do nothing.
+        } else {
+            let new_consensus_state = NearConsensusState::new(None, header.clone());
+            let new_client_state = self.clone().with_header(&header)?;
+
+            ctx.store_consensus_state(
+                ClientConsensusStatePath::new(client_id, &new_client_state.latest_height),
+                new_consensus_state.into(),
+            )?;
+            ctx.store_client_state(ClientStatePath::new(client_id), new_client_state.into())?;
+        }
+
+        let updated_heights = vec![header_height];
+        Ok(updated_heights)
+    }
+
+    fn update_state_on_misbehaviour(
+        &self,
+        ctx: &mut E,
+        client_id: &ClientId,
+        _client_message: Any,
+        _update_kind: &UpdateKind,
+    ) -> Result<(), ClientError> {
+        let frozen_client_state = self.clone().with_frozen_height(Height::min(0));
+
+        ctx.store_client_state(ClientStatePath::new(client_id), frozen_client_state.into())?;
+        Ok(())
+    }
+
+    // Commit the new client state and consensus state to the store
+    fn update_state_on_upgrade(
+        &self,
+        _ctx: &mut E,
+        _client_id: &ClientId,
+        _upgraded_client_state: Any,
+        _upgraded_consensus_state: Any,
+    ) -> Result<Height, ClientError> {
+        // Since `verify_upgrade_client` function is unavailable in the NEAR Protocol,
+        // this function should also not be allowed to be used in order to ensure that
+        // all state updates are properly verified.
+        Err(ClientError::Other {
+            description: "This function is NOT available in NEAR client.".to_string(),
+        })
     }
 }
 
@@ -479,15 +492,4 @@ impl From<ClientState> for Any {
             value: Protobuf::<RawClientState>::encode_vec(&client_state),
         }
     }
-}
-
-fn downcast_near_consensus_state(
-    cs: &dyn ConsensusState,
-) -> Result<NearConsensusState, ClientError> {
-    cs.as_any()
-        .downcast_ref::<NearConsensusState>()
-        .ok_or_else(|| ClientError::ClientArgsTypeMismatch {
-            client_type: super::client_type(),
-        })
-        .map(Clone::clone)
 }

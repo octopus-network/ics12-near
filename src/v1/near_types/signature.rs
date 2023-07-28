@@ -94,7 +94,7 @@ impl BorshSerialize for Signature {
         match self {
             Signature::ED25519(signature) => {
                 BorshSerialize::serialize(&0u8, writer)?;
-                writer.write_all(&signature)?;
+                writer.write_all(signature)?;
             }
         }
         Ok(())

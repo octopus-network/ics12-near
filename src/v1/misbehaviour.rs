@@ -1,10 +1,7 @@
 use super::{error::Error, header::Header as NearHeader};
 use crate::prelude::*;
 use bytes::Buf;
-use ibc::core::{
-    ics02_client::{error::ClientError, header::Header},
-    ics24_host::identifier::ClientId,
-};
+use ibc::core::{ics02_client::error::ClientError, ics24_host::identifier::ClientId};
 use ibc_proto::{
     google::protobuf::Any, ibc::lightclients::near::v1::Misbehaviour as RawMisbehaviour,
     protobuf::Protobuf,

@@ -1,27 +1,36 @@
-use super::{super::header::Header as NearHeader, ClientState};
+use crate::v1::client_state::ClientState;
+use crate::v1::consensus_state::ConsensusState as NearConsensusState;
+use crate::v1::header::Header as NearHeader;
+use crate::v1::ValidationContext as NearValidationContext;
 use crate::{
     prelude::*,
     v1::near_types::{hash::sha256, merkle::merklize},
 };
 use borsh::BorshSerialize;
 use ibc::core::{
-    ics02_client::{error::ClientError, header::Header},
+    ics02_client::error::ClientError,
     ics24_host::{identifier::ClientId, path::ClientConsensusStatePath},
-    ValidationContext,
 };
 
 impl ClientState {
-    pub fn verify_header(
+    pub fn verify_header<ClientValidationContext>(
         &self,
-        ctx: &dyn ValidationContext,
+        ctx: &ClientValidationContext,
         client_id: &ClientId,
         header: &NearHeader,
-    ) -> Result<(), ClientError> {
+    ) -> Result<(), ClientError>
+    where
+        ClientValidationContext: NearValidationContext,
+    {
         let client_consensus_state_path =
             ClientConsensusStatePath::new(client_id, &self.latest_height);
-        let latest_consensus_state = super::downcast_near_consensus_state(
-            ctx.consensus_state(&client_consensus_state_path)?.as_ref(),
-        )?;
+
+        let latest_consensus_state: NearConsensusState = ctx
+            .consensus_state(&client_consensus_state_path)?
+            .try_into()
+            .map_err(|err| ClientError::Other {
+                description: err.to_string(),
+            })?;
         let latest_header = &latest_consensus_state.header;
 
         let approval_message = header.light_client_block.approval_message();
@@ -138,13 +147,17 @@ impl ClientState {
 
         Ok(())
     }
+
     ///
-    pub fn check_for_misbehaviour_update_client(
+    pub fn check_for_misbehaviour_update_client<ClientValidationContext>(
         &self,
-        ctx: &dyn ValidationContext,
+        ctx: &ClientValidationContext,
         client_id: &ClientId,
-        header: &NearHeader,
-    ) -> Result<bool, ClientError> {
+        header: NearHeader,
+    ) -> Result<bool, ClientError>
+    where
+        ClientValidationContext: NearValidationContext,
+    {
         let maybe_existing_consensus_state = {
             let path_at_header_height = ClientConsensusStatePath::new(client_id, &header.height());
 
@@ -153,8 +166,11 @@ impl ClientState {
 
         match maybe_existing_consensus_state {
             Some(existing_consensus_state) => {
-                let existing_consensus_state =
-                    super::downcast_near_consensus_state(existing_consensus_state.as_ref())?;
+                let existing_consensus_state: NearConsensusState = existing_consensus_state
+                    .try_into()
+                    .map_err(|err| ClientError::Other {
+                        description: err.to_string(),
+                    })?;
 
                 // There is evidence of misbehaviour if the stored consensus state
                 // is different from the new one we received.
@@ -175,7 +191,11 @@ impl ClientState {
                     if let Some(prev_cs) = maybe_prev_cs {
                         // New header timestamp cannot occur *before* the
                         // previous consensus state's height
-                        let prev_cs = super::downcast_near_consensus_state(prev_cs.as_ref())?;
+
+                        let prev_cs: NearConsensusState =
+                            prev_cs.try_into().map_err(|err| ClientError::Other {
+                                description: err.to_string(),
+                            })?;
 
                         if header.timestamp() <= prev_cs.header.timestamp() {
                             return Ok(true);
@@ -191,7 +211,11 @@ impl ClientState {
                     if let Some(next_cs) = maybe_next_cs {
                         // New (untrusted) header timestamp cannot occur *after* next
                         // consensus state's height
-                        let next_cs = super::downcast_near_consensus_state(next_cs.as_ref())?;
+
+                        let next_cs: NearConsensusState =
+                            next_cs.try_into().map_err(|err| ClientError::Other {
+                                description: err.to_string(),
+                            })?;
 
                         if header.timestamp() >= next_cs.header.timestamp() {
                             return Ok(true);
