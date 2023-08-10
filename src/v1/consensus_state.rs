@@ -75,8 +75,8 @@ impl ibc::core::ics02_client::consensus_state::ConsensusState for ConsensusState
     /// Serializes the `ConsensusState`. This is expected to be implemented as
     /// first converting to the raw type (i.e. the protobuf definition), and then
     /// serializing that.
-    fn encode_vec(&self) -> Vec<u8> {
-        <Self as Protobuf<Any>>::encode_vec(self)
+    fn encode_vec(&self) -> Result<Vec<u8>, tendermint_proto::Error> {
+        Ok(<Self as Protobuf<Any>>::encode_vec(self))
     }
 }
 
