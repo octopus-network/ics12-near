@@ -363,8 +363,36 @@ where
             //
             // Do nothing.
         } else {
-            let new_consensus_state = NearConsensusState::new(None, header.clone());
+            let maybe_prev_cs = ctx.prev_consensus_state(client_id, &header.height())?;
+
+            let new_consensus_state = match maybe_prev_cs {
+                Some(prev_cs) => {
+                    // New header timestamp cannot occur *before* the
+                    // previous consensus state's height
+                    let prev_cs: NearConsensusState =
+                        prev_cs.try_into().map_err(|err| ClientError::Other {
+                            description: err.to_string(),
+                        })?;
+                    NearConsensusState::new(
+                        prev_cs.get_block_producers_of(&header.epoch_id()),
+                        header.clone(),
+                    )
+                }
+                None => NearConsensusState::new(None, header.clone()),
+            };
+
             let new_client_state = self.clone().with_header(&header)?;
+
+            // ctx.store_update_time(
+            //     client_id.clone(),
+            //     new_client_state.latest_height(),
+            //     ctx.host_timestamp()?,
+            // )?;
+            // ctx.store_update_height(
+            //     client_id.clone(),
+            //     new_client_state.latest_height(),
+            //     ctx.host_height()?,
+            // )?;
 
             ctx.store_consensus_state(
                 ClientConsensusStatePath::new(client_id, &new_client_state.latest_height),

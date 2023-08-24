@@ -51,6 +51,6 @@ pub trait ValidationContext: CommonContext {
 ///
 /// This trait is automatically implemented for all types that implement
 /// [`CommonContext`] and [`ClientExecutionContext`]
-pub trait ExecutionContext: CommonContext + ClientExecutionContext {}
+pub trait ExecutionContext: CommonContext + ClientExecutionContext + ValidationContext {}
 
-impl<T> ExecutionContext for T where T: CommonContext + ClientExecutionContext {}
+impl<T> ExecutionContext for T where T: CommonContext + ClientExecutionContext + ValidationContext {}
