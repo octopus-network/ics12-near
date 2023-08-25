@@ -29,6 +29,9 @@ pub trait CommonContext {
 
 /// Client's context required during validation
 pub trait ValidationContext: CommonContext {
+    /// Returns the current height of the local chain.
+    fn host_height(&self) -> Result<Height, ContextError>;
+
     /// Returns the current timestamp of the local chain.
     fn host_timestamp(&self) -> Result<Timestamp, ContextError>;
 
@@ -51,6 +54,24 @@ pub trait ValidationContext: CommonContext {
 ///
 /// This trait is automatically implemented for all types that implement
 /// [`CommonContext`] and [`ClientExecutionContext`]
-pub trait ExecutionContext: CommonContext + ClientExecutionContext + ValidationContext {}
+pub trait ExecutionContext: ClientExecutionContext + ValidationContext {
+    /// Called upon successful client update.
+    /// Implementations are expected to use this to record the specified time as the time at which
+    /// this update (or header) was processed.
+    fn store_update_time(
+        &mut self,
+        client_id: ClientId,
+        height: Height,
+        timestamp: Timestamp,
+    ) -> Result<(), ContextError>;
 
-impl<T> ExecutionContext for T where T: CommonContext + ClientExecutionContext + ValidationContext {}
+    /// Called upon successful client update.
+    /// Implementations are expected to use this to record the specified height as the height at
+    /// at which this update (or header) was processed.
+    fn store_update_height(
+        &mut self,
+        client_id: ClientId,
+        height: Height,
+        host_height: Height,
+    ) -> Result<(), ContextError>;
+}

@@ -84,6 +84,13 @@ impl ClientState {
         })
     }
     ///
+    pub fn with_timestamp(self, timestamp: u64) -> Self {
+        Self {
+            latest_timestamp: timestamp,
+            ..self
+        }
+    }
+    ///
     pub fn with_frozen_height(self, h: Height) -> Self {
         Self {
             frozen_height: Some(h),
@@ -381,18 +388,21 @@ where
                 None => NearConsensusState::new(None, header.clone()),
             };
 
-            let new_client_state = self.clone().with_header(&header)?;
+            let new_client_state = self
+                .clone()
+                .with_header(&header)?
+                .with_timestamp(new_consensus_state.timestamp().nanoseconds());
 
-            // ctx.store_update_time(
-            //     client_id.clone(),
-            //     new_client_state.latest_height(),
-            //     ctx.host_timestamp()?,
-            // )?;
-            // ctx.store_update_height(
-            //     client_id.clone(),
-            //     new_client_state.latest_height(),
-            //     ctx.host_height()?,
-            // )?;
+            ctx.store_update_time(
+                client_id.clone(),
+                new_client_state.latest_height(),
+                ctx.host_timestamp()?,
+            )?;
+            ctx.store_update_height(
+                client_id.clone(),
+                new_client_state.latest_height(),
+                ctx.host_height()?,
+            )?;
 
             ctx.store_consensus_state(
                 ClientConsensusStatePath::new(client_id, &new_client_state.latest_height),
