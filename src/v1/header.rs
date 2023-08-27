@@ -36,19 +36,21 @@ impl Header {
         self.light_client_block.inner_lite.next_epoch_id.0
     }
     ///
-    pub fn timestamp(&self) -> u64 {
+    pub fn raw_timestamp(&self) -> u64 {
         self.light_client_block.inner_lite.timestamp
     }
 }
 
-impl ibc::core::ics02_client::header::Header for Header {
-    fn height(&self) -> Height {
+impl Header {
+    ///
+    pub fn height(&self) -> Height {
         Height::new(0, self.light_client_block.inner_lite.height)
             .expect("Invalid height in NEAR header")
     }
 
-    fn timestamp(&self) -> Timestamp {
-        Timestamp::from_nanoseconds(self.timestamp()).expect("Invalid timestamp in NEAR header")
+    ///
+    pub fn timestamp(&self) -> Timestamp {
+        Timestamp::from_nanoseconds(self.raw_timestamp()).expect("Invalid timestamp in NEAR header")
     }
 }
 

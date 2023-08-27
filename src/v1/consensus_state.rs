@@ -54,7 +54,7 @@ impl ConsensusState {
     /// Returns the block producers corresponding to current epoch or the next.
     pub fn get_block_producers_of(&self, epoch_id: &CryptoHash) -> Option<Vec<ValidatorStakeView>> {
         if *epoch_id == self.header.epoch_id() {
-            return self.current_bps.clone();
+            self.current_bps.clone()
         } else if *epoch_id == self.header.next_epoch_id() {
             return self.header.light_client_block.next_bps.clone();
         } else {
@@ -69,7 +69,14 @@ impl ibc::core::ics02_client::consensus_state::ConsensusState for ConsensusState
     }
 
     fn timestamp(&self) -> Timestamp {
-        Timestamp::from_nanoseconds(self.header.timestamp()).expect("Invalid timestamp")
+        Timestamp::from_nanoseconds(self.header.raw_timestamp()).expect("Invalid timestamp")
+    }
+
+    /// Serializes the `ConsensusState`. This is expected to be implemented as
+    /// first converting to the raw type (i.e. the protobuf definition), and then
+    /// serializing that.
+    fn encode_vec(&self) -> Vec<u8> {
+        <Self as Protobuf<Any>>::encode_vec(self)
     }
 }
 

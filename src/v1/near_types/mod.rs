@@ -45,10 +45,7 @@ impl LightClientBlockLite {
         combine_hash(
             &combine_hash(
                 &CryptoHash(sha256(
-                    BlockHeaderInnerLite::from(self.inner_lite.clone())
-                        .try_to_vec()
-                        .unwrap()
-                        .as_ref(),
+                    self.inner_lite.clone().try_to_vec().unwrap().as_ref(),
                 )),
                 &self.inner_rest_hash,
             ),

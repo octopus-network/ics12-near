@@ -1,18 +1,20 @@
 use super::{super::misbehaviour::Misbehaviour as NearMisbehaviour, ClientState};
 use crate::prelude::*;
-use ibc::core::{
-    ics02_client::{error::ClientError, header::Header}, ics24_host::identifier::ClientId, ValidationContext,
-};
+use crate::v1::ValidationContext as NearValidationContext;
+use ibc::core::{ics02_client::error::ClientError, ics24_host::identifier::ClientId};
 
 impl ClientState {
     // verify_misbehaviour determines whether or not two conflicting headers at
     // the same height would have convinced the light client.
-    pub fn verify_misbehaviour(
+    pub fn verify_misbehaviour<ClientValidationContext>(
         &self,
-        ctx: &dyn ValidationContext,
+        ctx: &ClientValidationContext,
         client_id: &ClientId,
-        misbehaviour: &NearMisbehaviour,
-    ) -> Result<(), ClientError> {
+        misbehaviour: NearMisbehaviour,
+    ) -> Result<(), ClientError>
+    where
+        ClientValidationContext: NearValidationContext,
+    {
         self.verify_header(ctx, client_id, misbehaviour.header1())?;
         self.verify_header(ctx, client_id, misbehaviour.header2())
     }
