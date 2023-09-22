@@ -11,8 +11,10 @@ use ibc::{
 };
 use ibc_proto::{
     google::protobuf::Any,
-    ibc::lightclients::near::v1::{CryptoHash as RawCryptoHash, Header as RawHeader},
     protobuf::Protobuf,
+};
+use ics12_proto::v1::{
+    CryptoHash as RawCryptoHash, Header as RawHeader
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};

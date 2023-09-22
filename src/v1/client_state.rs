@@ -37,10 +37,8 @@ use ibc::{
     },
     Height,
 };
-use ibc_proto::{
-    google::protobuf::Any, ibc::lightclients::near::v1::ClientState as RawClientState,
-    protobuf::Protobuf,
-};
+use ibc_proto::{google::protobuf::Any, protobuf::Protobuf};
+use ics12_proto::v1::ClientState as RawClientState;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 

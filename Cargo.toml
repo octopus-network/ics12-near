@@ -16,6 +16,7 @@ description = """
 [dependencies]
 ibc = { version = "0.45", features = ["parity-scale-codec", "borsh", "serde"], default-features = false }
 ibc-proto = { version = "0.35", features = ["parity-scale-codec", "borsh", "serde"], default-features = false }
+ics12-proto = { version = "0.1.2", default-features = false }
 prost = { version = "0.11", default-features = false }
 displaydoc = { version = "0.2", default-features = false }
 bytes = { version = "1.2.1", default-features = false }
@@ -39,10 +40,7 @@ std = [
     "displaydoc/std",
     "bytes/std",
     "serde/std",
+    "ics12-proto/std",
 ]
 v1 = []
 serde = ["serde/std", "ibc/serde"]
-
-[patch.crates-io]
-ibc = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "octopus-relayer" }
-ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branch = "octopus-relayer" }
