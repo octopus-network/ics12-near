@@ -12,10 +12,10 @@ use ibc::core::{
 };
 use ibc_proto::{
     google::protobuf::Any,
-    ibc::lightclients::near::v1::{
-        ConsensusState as RawConsensusState, ValidatorStakeView as RawValidatorStakeView,
-    },
     protobuf::Protobuf,
+};
+use ics12_proto::v1:: {
+    ConsensusState as RawConsensusState, ValidatorStakeView as RawValidatorStakeView,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};

@@ -17,7 +17,7 @@ use crate::{
 use borsh::BorshDeserialize;
 use core::{cmp::max, time::Duration};
 use ibc::core::ics02_client::client_state::{
-    ClientStateCommon, ClientStateExecution, ClientStateValidation, UpdateKind,
+    ClientStateCommon, ClientStateExecution, ClientStateValidation, Status, UpdateKind,
 };
 use ibc::core::ics02_client::ClientExecutionContext;
 use ibc::{
@@ -37,14 +37,12 @@ use ibc::{
     },
     Height,
 };
-use ibc_proto::{
-    google::protobuf::Any, ibc::lightclients::near::v1::ClientState as RawClientState,
-    protobuf::Protobuf,
-};
+use ibc_proto::{google::protobuf::Any, protobuf::Protobuf};
+use ics12_proto::v1::ClientState as RawClientState;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 
-const NEAR_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ClientState";
+pub const NEAR_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ClientState";
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ClientState {
@@ -102,6 +100,10 @@ impl ClientState {
         self.trusting_period = ZERO_DURATION;
         self.frozen_height = None;
     }
+
+    fn is_frozen(&self) -> bool {
+        self.frozen_height.is_some()
+    }
 }
 
 impl ClientStateCommon for ClientState {
@@ -132,19 +134,6 @@ impl ClientStateCommon for ClientState {
             });
         }
         Ok(())
-    }
-
-    fn confirm_not_frozen(&self) -> Result<(), ClientError> {
-        if let Some(frozen_height) = self.frozen_height {
-            return Err(ClientError::ClientFrozen {
-                description: format!("the client is frozen at height {frozen_height}"),
-            });
-        }
-        Ok(())
-    }
-
-    fn expired(&self, elapsed: Duration) -> bool {
-        elapsed > self.trusting_period
     }
 
     /// Perform client-specific verifications and check all data in the new
@@ -281,6 +270,9 @@ impl ClientStateCommon for ClientState {
 impl<ClientValidationContext> ClientStateValidation<ClientValidationContext> for ClientState
 where
     ClientValidationContext: NearValidationContext,
+    ClientValidationContext::AnyConsensusState: TryInto<NearConsensusState>,
+    ClientError:
+        From<<ClientValidationContext::AnyConsensusState as TryInto<NearConsensusState>>::Error>,
 {
     fn verify_client_message(
         &self,
@@ -318,6 +310,43 @@ where
                 self.check_for_misbehaviour_misbehaviour(&misbehaviour)
             }
         }
+    }
+
+    fn status(
+        &self,
+        ctx: &ClientValidationContext,
+        client_id: &ClientId,
+    ) -> Result<Status, ClientError> {
+        if self.is_frozen() {
+            return Ok(Status::Frozen);
+        }
+
+        let latest_consensus_state: NearConsensusState = {
+            let any_latest_consensus_state = match ctx.consensus_state(
+                &ClientConsensusStatePath::new(client_id, &self.latest_height),
+            ) {
+                Ok(cs) => cs,
+                // if the client state does not have an associated consensus state for its latest height
+                // then it must be expired
+                Err(_) => return Ok(Status::Expired),
+            };
+
+            any_latest_consensus_state.try_into()?
+        };
+
+        // Note: if the `duration_since()` is `None`, indicating that the latest
+        // consensus state is in the future, then we don't consider the client
+        // to be expired.
+        let now = ctx.host_timestamp()?;
+        if let Some(elapsed_since_latest_consensus_state) =
+            now.duration_since(&latest_consensus_state.timestamp())
+        {
+            if elapsed_since_latest_consensus_state > self.trusting_period {
+                return Ok(Status::Expired);
+            }
+        }
+
+        Ok(Status::Active)
     }
 }
 

@@ -3,9 +3,10 @@ use crate::prelude::*;
 use bytes::Buf;
 use ibc::core::{ics02_client::error::ClientError, ics24_host::identifier::ClientId};
 use ibc_proto::{
-    google::protobuf::Any, ibc::lightclients::near::v1::Misbehaviour as RawMisbehaviour,
+    google::protobuf::Any,
     protobuf::Protobuf,
 };
+use ics12_proto::v1::Misbehaviour as RawMisbehaviour;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
