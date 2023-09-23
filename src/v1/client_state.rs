@@ -42,7 +42,7 @@ use ics12_proto::v1::ClientState as RawClientState;
 use prost::{DecodeError, Message};
 use serde::{Deserialize, Serialize};
 
-const NEAR_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ClientState";
+pub const NEAR_CLIENT_STATE_TYPE_URL: &str = "/ibc.lightclients.near.v1.ClientState";
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ClientState {
