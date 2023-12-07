@@ -410,7 +410,6 @@ where
                         prev_cs.inner().get_block_producers_of(&header.epoch_id()),
                         header.clone(),
                     )
-                    .into()
                 }
                 None => ConsensusStateType::new(None, header.clone()),
             };

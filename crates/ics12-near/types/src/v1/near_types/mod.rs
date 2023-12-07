@@ -45,7 +45,11 @@ impl LightClientBlockLite {
     pub fn current_block_hash(&self) -> CryptoHash {
         combine_hash(
             &combine_hash(
-                &CryptoHash(sha256(to_vec(&self.inner_lite.clone()).unwrap().as_ref())),
+                &CryptoHash(sha256(
+                    to_vec(&self.inner_lite.clone())
+                        .expect("never failed")
+                        .as_ref(),
+                )),
                 &self.inner_rest_hash,
             ),
             &self.prev_block_hash,
@@ -111,7 +115,9 @@ impl LightClientBlock {
     pub fn current_block_hash(&self) -> CryptoHash {
         combine_hash(
             &combine_hash(
-                &CryptoHash(sha256(to_vec(&self.inner_lite).unwrap().as_ref())),
+                &CryptoHash(sha256(
+                    to_vec(&self.inner_lite).expect("never failed").as_ref(),
+                )),
                 &self.inner_rest_hash,
             ),
             &self.prev_block_hash,
@@ -125,7 +131,7 @@ impl LightClientBlock {
     pub fn approval_message(&self) -> Vec<u8> {
         [
             to_vec(&ApprovalInner::Endorsement(self.next_block_hash()))
-                .unwrap()
+                .expect("never failed")
                 .as_ref(),
             (self.inner_lite.height + 2).to_le_bytes().as_ref(),
         ]

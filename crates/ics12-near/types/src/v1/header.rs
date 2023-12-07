@@ -82,12 +82,12 @@ impl TryFrom<RawHeader> for Header {
 impl From<Header> for RawHeader {
     fn from(value: Header) -> Self {
         Self {
-            light_client_block: to_vec(&value.light_client_block).unwrap(),
+            light_client_block: to_vec(&value.light_client_block).expect("never failed"),
             prev_state_root_of_chunks: value
                 .prev_state_root_of_chunks
                 .into_iter()
                 .map(|ch| RawCryptoHash {
-                    raw_data: to_vec(&ch).unwrap(),
+                    raw_data: to_vec(&ch).expect("never failed"),
                 })
                 .collect(),
         }

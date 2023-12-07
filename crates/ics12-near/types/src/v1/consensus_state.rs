@@ -86,7 +86,7 @@ impl From<ConsensusState> for RawConsensusState {
                 Some(bps) => bps
                     .into_iter()
                     .map(|vsv| RawValidatorStakeView {
-                        raw_data: to_vec(&vsv).unwrap(),
+                        raw_data: to_vec(&vsv).expect("never failed"),
                     })
                     .collect(),
             },
