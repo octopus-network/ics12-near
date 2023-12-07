@@ -14,6 +14,7 @@ use self::{
     signature::{PublicKey, Signature},
 };
 use alloc::{string::String, vec::Vec};
+use borsh::to_vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
@@ -44,9 +45,7 @@ impl LightClientBlockLite {
     pub fn current_block_hash(&self) -> CryptoHash {
         combine_hash(
             &combine_hash(
-                &CryptoHash(sha256(
-                    self.inner_lite.clone().try_to_vec().unwrap().as_ref(),
-                )),
+                &CryptoHash(sha256(to_vec(&self.inner_lite.clone()).unwrap().as_ref())),
                 &self.inner_rest_hash,
             ),
             &self.prev_block_hash,
@@ -112,7 +111,7 @@ impl LightClientBlock {
     pub fn current_block_hash(&self) -> CryptoHash {
         combine_hash(
             &combine_hash(
-                &CryptoHash(sha256(self.inner_lite.try_to_vec().unwrap().as_ref())),
+                &CryptoHash(sha256(to_vec(&self.inner_lite).unwrap().as_ref())),
                 &self.inner_rest_hash,
             ),
             &self.prev_block_hash,
@@ -125,8 +124,7 @@ impl LightClientBlock {
     //
     pub fn approval_message(&self) -> Vec<u8> {
         [
-            ApprovalInner::Endorsement(self.next_block_hash())
-                .try_to_vec()
+            to_vec(&ApprovalInner::Endorsement(self.next_block_hash()))
                 .unwrap()
                 .as_ref(),
             (self.inner_lite.height + 2).to_le_bytes().as_ref(),

@@ -1,16 +1,14 @@
 use crate::v1::client_state::ClientState;
 use crate::v1::consensus_state::ConsensusState as NearConsensusState;
-use crate::v1::header::Header as NearHeader;
-use crate::v1::ValidationContext as NearValidationContext;
-use crate::{
-    prelude::*,
-    v1::near_types::{hash::sha256, merkle::merklize},
-};
-use borsh::BorshSerialize;
-use ibc::core::{
-    ics02_client::error::ClientError,
-    ics24_host::{identifier::ClientId, path::ClientConsensusStatePath},
-};
+use crate::v1::context::ValidationContext as NearValidationContext;
+use alloc::format;
+use alloc::string::ToString;
+use borsh::to_vec;
+use ibc_core::client::types::error::ClientError;
+use ibc_core::host::types::identifiers::ClientId;
+use ibc_core::host::types::path::ClientConsensusStatePath;
+use ics12_near_types::v1::header::Header as NearHeader;
+use ics12_near_types::v1::near_types::{hash::sha256, merkle::merklize};
 
 impl ClientState {
     pub fn verify_header<ClientValidationContext>(
@@ -22,8 +20,11 @@ impl ClientState {
     where
         ClientValidationContext: NearValidationContext,
     {
-        let client_consensus_state_path =
-            ClientConsensusStatePath::new(client_id, &self.latest_height);
+        let client_consensus_state_path = ClientConsensusStatePath::new(
+            client_id.clone(),
+            self.0.latest_height.revision_number(),
+            self.0.latest_height.revision_height(),
+        );
 
         let latest_consensus_state: NearConsensusState = ctx
             .consensus_state(&client_consensus_state_path)?
@@ -31,7 +32,7 @@ impl ClientState {
             .map_err(|err| ClientError::Other {
                 description: err.to_string(),
             })?;
-        let latest_header = &latest_consensus_state.header;
+        let latest_header = &latest_consensus_state.inner().header;
 
         let approval_message = header.light_client_block.approval_message();
 
@@ -69,7 +70,9 @@ impl ClientState {
         let mut total_stake = 0;
         let mut approved_stake = 0;
 
-        let bps = latest_consensus_state.get_block_producers_of(&header.epoch_id());
+        let bps = latest_consensus_state
+            .inner()
+            .get_block_producers_of(&header.epoch_id());
         if bps.is_none() {
             return Err(ClientError::Other {
                 description: format!(
@@ -120,13 +123,14 @@ impl ClientState {
         // If next_bps is not none, sha256(borsh(next_bps)) corresponds to
         // the next_bp_hash in inner_lite.
         if header.light_client_block.next_bps.is_some() {
-            let block_view_next_bps_serialized = header
-                .light_client_block
-                .next_bps
-                .as_deref()
-                .expect("Should not fail based on previous checking.")
-                .try_to_vec()
-                .expect("Should not fail based on borsh serialization.");
+            let block_view_next_bps_serialized = to_vec(
+                &header
+                    .light_client_block
+                    .next_bps
+                    .as_deref()
+                    .expect("Should not fail based on previous checking."),
+            )
+            .expect("Should not fail based on previous checking.");
             if sha256(&block_view_next_bps_serialized).as_slice()
                 != header.light_client_block.inner_lite.next_bp_hash.as_ref()
             {
@@ -159,7 +163,11 @@ impl ClientState {
         ClientValidationContext: NearValidationContext,
     {
         let maybe_existing_consensus_state = {
-            let path_at_header_height = ClientConsensusStatePath::new(client_id, &header.height());
+            let path_at_header_height = ClientConsensusStatePath::new(
+                client_id.clone(),
+                header.height().revision_number(),
+                header.height().revision_height(),
+            );
 
             ctx.consensus_state(&path_at_header_height).ok()
         };
@@ -175,6 +183,7 @@ impl ClientState {
                 // There is evidence of misbehaviour if the stored consensus state
                 // is different from the new one we received.
                 Ok(existing_consensus_state
+                    .inner()
                     .header
                     .light_client_block
                     .current_block_hash()
@@ -197,7 +206,7 @@ impl ClientState {
                                 description: err.to_string(),
                             })?;
 
-                        if header.timestamp() <= prev_cs.header.timestamp() {
+                        if header.timestamp() <= prev_cs.inner().header.timestamp() {
                             return Ok(true);
                         }
                     }
@@ -205,7 +214,7 @@ impl ClientState {
 
                 // 2. if a header comes in and is not the “last” header, then we also ensure
                 //    that its timestamp is less than the “next header”
-                if header.height() < self.latest_height {
+                if header.height() < self.0.latest_height {
                     let maybe_next_cs = ctx.next_consensus_state(client_id, &header.height())?;
 
                     if let Some(next_cs) = maybe_next_cs {
@@ -217,7 +226,7 @@ impl ClientState {
                                 description: err.to_string(),
                             })?;
 
-                        if header.timestamp() >= next_cs.header.timestamp() {
+                        if header.timestamp() >= next_cs.inner().header.timestamp() {
                             return Ok(true);
                         }
                     }

@@ -1,0 +1,72 @@
+[package]
+name = "ics12-near-types"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+#
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+# external dependencies
+borsh      = { workspace = true, features = ["derive"] }
+bytes      = { workspace = true }
+displaydoc = { workspace = true }
+prost      = { workspace = true }
+serde      = { workspace = true, optional = true }
+serde_json = { workspace = true}
+subtle-encoding = { workspace = true }
+k256 = { workspace = true }
+ics12-proto = { workspace = true }
+elastic-array = { workspace = true }
+sha2 = { workspace = true }
+bs58 = { workspace = true }
+byteorder = { workspace = true }
+ed25519-dalek = { workspace = true }
+
+# ibc dependencies
+ibc-core = { workspace = true, features = ["borsh"]}
+ibc-proto = { workspace = true, features = ["borsh"]}
+
+# tendermint
+tendermint = { workspace = true }
+
+# parity dependencies
+parity-scale-codec = { workspace = true, optional = true }
+scale-info         = { workspace = true, optional = true }
+
+[dev-dependencies]
+
+[features]
+default = ["std", "v1"]
+v1 = []
+std = [
+    "bytes/std",
+    "displaydoc/std",
+    "prost/std",
+    "serde/std",
+    "serde_json/std",
+    "subtle-encoding/std",
+    "k256/std",
+    "ibc-core/std",
+    "ibc-proto/std",
+    "tendermint/std",
+]
+serde = [
+    "dep:serde",
+    "ibc-core/serde",
+    "ibc-proto/serde",
+]
+schema = [
+    "ibc-core/schema",
+    "ibc-proto/json-schema",
+    "serde",
+    "std"
+]
+parity-scale-codec = [
+    "dep:parity-scale-codec",
+    "dep:scale-info",
+    "ibc-core/parity-scale-codec",
+    "ibc-proto/parity-scale-codec",
+]

@@ -11,7 +11,5 @@
 
 extern crate alloc;
 
-mod prelude;
-
 #[cfg(feature = "v1")]
 pub mod v1;

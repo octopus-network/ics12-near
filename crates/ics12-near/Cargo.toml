@@ -1,0 +1,52 @@
+[package]
+name        = "ics12-near"
+version     = "0.1.0"
+edition     = "2021"
+license     = "Apache-2.0"
+readme      = "README.md"
+keywords    = ["near", "ics12", "cosmos", "ibc"]
+repository  = "https://github.com/octopus-network/ics12-near.git"
+authors     = ["Octopus Network"]
+description = """
+    Implementation of the ICS12 client (for NEAR protocol).
+"""
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+borsh      = { workspace = true, features = ["derive"] }
+ibc-core = { workspace = true }
+ibc-proto = { workspace = true }
+ics12-near-types = { workspace = true }
+ics12-proto = { workspace = true }
+
+prost = { workspace = true  }
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+hex-literal = "0.4"
+
+[features]
+default = ["std", "v1", "serde"]
+v1 = []
+std = [
+    "prost/std",
+    "serde/std",
+    "ics12-near-types/std",
+    "ibc-core/std",
+]
+serde = [
+    "dep:serde",
+    "ics12-near-types/serde",
+    "ibc-core/serde",
+]
+schema = [
+    "ics12-near-types/schema",
+    "ibc-core/schema",
+    "serde",
+    "std"
+]
+parity-scale-codec = [
+    "ics12-near-types/parity-scale-codec",
+    "ibc-core/parity-scale-codec",
+]

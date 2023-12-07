@@ -212,6 +212,7 @@ impl PartialEq for NibbleSlice<'_> {
     }
 }
 
+#[allow(clippy::non_canonical_partial_ord_impl)]
 impl PartialOrd for NibbleSlice<'_> {
     fn partial_cmp(&self, them: &Self) -> Option<Ordering> {
         let s = min(self.len(), them.len());

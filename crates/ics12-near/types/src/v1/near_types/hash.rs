@@ -1,10 +1,23 @@
 use alloc::string::{String, ToString};
+use borsh::to_vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use core::fmt::{self, Debug, Display};
-use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, BorshDeserialize, BorshSerialize, Hash, Deserialize, Serialize)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    BorshDeserialize,
+    BorshSerialize,
+    Hash,
+    Deserialize,
+    Serialize,
+)]
 pub struct CryptoHash(pub [u8; 32]);
 
 impl CryptoHash {
@@ -26,7 +39,7 @@ impl CryptoHash {
     /// prefer using [`Self::hash_borsh_slice`] instead.
     pub fn hash_borsh<T: BorshSerialize>(value: &T) -> CryptoHash {
         let mut hasher = Sha256::new();
-        hasher.update(&value.try_to_vec().unwrap());
+        hasher.update(&to_vec(&value).unwrap());
         CryptoHash(hasher.finalize().into())
     }
 }

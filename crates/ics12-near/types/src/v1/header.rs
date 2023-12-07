@@ -2,20 +2,17 @@ use super::{
     error::Error,
     near_types::{hash::CryptoHash, LightClientBlock},
 };
-use crate::prelude::*;
+use alloc::format;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+use borsh::to_vec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytes::Buf;
-use ibc::{
-    core::{ics02_client::error::ClientError, timestamp::Timestamp},
-    Height,
-};
-use ibc_proto::{
-    google::protobuf::Any,
-    protobuf::Protobuf,
-};
-use ics12_proto::v1::{
-    CryptoHash as RawCryptoHash, Header as RawHeader
-};
+use ibc_core::client::types::error::ClientError;
+use ibc_core::client::types::Height;
+use ibc_core::primitives::Timestamp;
+use ibc_proto::{google::protobuf::Any, Protobuf};
+use ics12_proto::v1::{CryptoHash as RawCryptoHash, Header as RawHeader};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
@@ -85,12 +82,12 @@ impl TryFrom<RawHeader> for Header {
 impl From<Header> for RawHeader {
     fn from(value: Header) -> Self {
         Self {
-            light_client_block: value.light_client_block.try_to_vec().unwrap(),
+            light_client_block: to_vec(&value.light_client_block).unwrap(),
             prev_state_root_of_chunks: value
                 .prev_state_root_of_chunks
                 .into_iter()
                 .map(|ch| RawCryptoHash {
-                    raw_data: ch.try_to_vec().unwrap(),
+                    raw_data: to_vec(&ch).unwrap(),
                 })
                 .collect(),
         }
@@ -118,7 +115,7 @@ impl From<Header> for Any {
     fn from(header: Header) -> Self {
         Any {
             type_url: NEAR_HEADER_TYPE_URL.to_string(),
-            value: Protobuf::<RawHeader>::encode_vec(&header),
+            value: Protobuf::<RawHeader>::encode_vec(header),
         }
     }
 }
