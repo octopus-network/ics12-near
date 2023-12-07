@@ -1,4 +1,5 @@
 use alloc::format;
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use borsh::io::Error;
 use borsh::io::ErrorKind;
@@ -78,16 +79,14 @@ impl BorshSerialize for PublicKey {
 }
 
 impl BorshDeserialize for PublicKey {
-    // TODO(davirian)
-    fn deserialize_reader<R: borsh::io::Read>(_reader: &mut R) -> Result<Self, Error> {
-        // let key_type = KeyType::try_from(<u8 as BorshDeserialize>::deserialize(reader)?)
-        //     .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?;
-        // match key_type {
-        //     KeyType::ED25519 => Ok(PublicKey::ED25519(ED25519PublicKey(
-        //         BorshDeserialize::deserialize(reader)?,
-        //     ))),
-        // }
-        todo!()
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> Result<Self, Error> {
+        let key_type = KeyType::try_from(u8::deserialize_reader(reader)?)
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?;
+        match key_type {
+            KeyType::ED25519 => Ok(PublicKey::ED25519(ED25519PublicKey(
+                BorshDeserialize::deserialize_reader(reader)?,
+            ))),
+        }
     }
 }
 
@@ -104,17 +103,15 @@ impl BorshSerialize for Signature {
 }
 
 impl BorshDeserialize for Signature {
-    // TODO(davirian)
-    fn deserialize_reader<R: borsh::io::Read>(_reader: &mut R) -> Result<Self, Error> {
-        // let key_type = KeyType::try_from(<u8 as BorshDeserialize>::deserialize(buf)?)
-        //     .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?;
-        // match key_type {
-        //     KeyType::ED25519 => {
-        //         let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] =
-        //             BorshDeserialize::deserialize(buf)?;
-        //         Ok(Signature::ED25519(array.to_vec()))
-        //     }
-        // }
-        todo!()
+    fn deserialize_reader<R: borsh::io::Read>(reader: &mut R) -> Result<Self, Error> {
+        let key_type = KeyType::try_from(u8::deserialize_reader(reader)?)
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err.to_string()))?;
+        match key_type {
+            KeyType::ED25519 => {
+                let array: [u8; ed25519_dalek::SIGNATURE_LENGTH] =
+                    BorshDeserialize::deserialize_reader(reader)?;
+                Ok(Signature::ED25519(array.to_vec()))
+            }
+        }
     }
 }
