@@ -12,7 +12,7 @@ ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branc
 ibc-core = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "v0.48.1-octopus" }
 
 [workspace.dependencies]
-borsh = { version = "1" }
+borsh = { version = "1.0", default-features = false, features = ["derive"] }
 bytes = { version = "1.5.0", default-features = false }
 displaydoc = { version = "0.2", default-features = false }
 prost = { version = "0.12", default-features = false }

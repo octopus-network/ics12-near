@@ -3,7 +3,6 @@
 
 #![no_std]
 #![forbid(unsafe_code)]
-#![feature(btree_cursors)]
 #![cfg_attr(not(test), deny(clippy::unwrap_used))]
 #![cfg_attr(not(test), deny(clippy::disallowed_methods, clippy::disallowed_types,))]
 #![deny(

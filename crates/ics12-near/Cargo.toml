@@ -14,7 +14,7 @@ description = """
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-borsh      = { workspace = true, features = ["derive"] }
+borsh      = { workspace = true }
 ibc-core = { workspace = true }
 ibc-proto = { workspace = true }
 ics12-near-types = { workspace = true }
