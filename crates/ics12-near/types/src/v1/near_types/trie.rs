@@ -37,7 +37,7 @@ fn decode_children(bytes: &[u8]) -> Result<[Option<CryptoHash>; 16], Error> {
         if bitmap & pos != 0 {
             let mut arr = [0; 32];
             cursor.read_exact(&mut arr)?;
-            *child = Some(CryptoHash::try_from(&arr[..]).unwrap());
+            *child = Some(CryptoHash::try_from(&arr[..]).expect("never failed"));
         }
         pos <<= 1;
     }
