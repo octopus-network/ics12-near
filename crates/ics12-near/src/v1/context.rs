@@ -1,14 +1,11 @@
 use alloc::string::ToString;
-
-use ibc::{
-    core::{
-        ics02_client::ClientExecutionContext,
-        ics24_host::{identifier::ClientId, path::ClientConsensusStatePath},
-        timestamp::Timestamp,
-        ContextError,
-    },
-    Height,
-};
+use ibc_core::client::context::ClientExecutionContext;
+use ibc_core::client::types::Height;
+use ibc_core::handler::types::error::ContextError;
+use ibc_core::host::types::identifiers::ClientId;
+use ibc_core::host::types::path::ClientConsensusStatePath;
+use ibc_core::primitives::prelude::*;
+use ibc_core::primitives::Timestamp;
 
 use super::consensus_state::ConsensusState as NearConsensusState;
 
@@ -54,24 +51,4 @@ pub trait ValidationContext: CommonContext {
 ///
 /// This trait is automatically implemented for all types that implement
 /// [`CommonContext`] and [`ClientExecutionContext`]
-pub trait ExecutionContext: ClientExecutionContext + ValidationContext {
-    /// Called upon successful client update.
-    /// Implementations are expected to use this to record the specified time as the time at which
-    /// this update (or header) was processed.
-    fn store_update_time(
-        &mut self,
-        client_id: ClientId,
-        height: Height,
-        timestamp: Timestamp,
-    ) -> Result<(), ContextError>;
-
-    /// Called upon successful client update.
-    /// Implementations are expected to use this to record the specified height as the height at
-    /// at which this update (or header) was processed.
-    fn store_update_height(
-        &mut self,
-        client_id: ClientId,
-        height: Height,
-        host_height: Height,
-    ) -> Result<(), ContextError>;
-}
+pub trait ExecutionContext: ClientExecutionContext + ValidationContext {}

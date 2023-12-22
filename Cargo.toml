@@ -1,48 +1,41 @@
-[package]
-name        = "ics12-near"
-version     = "0.1.0"
-edition     = "2021"
-license     = "Apache-2.0"
-readme      = "README.md"
-keywords    = ["near", "ics12", "cosmos", "ibc"]
-repository  = "https://github.com/octopus-network/ics12-near.git"
-authors     = ["Octopus Network"]
-description = """
-    Implementation of the ICS12 client (for NEAR protocol).
-"""
+[workspace]
+resolver = "2"
+members = [
+    "crates/ics12-near",
+    "crates/ics12-near/types",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[patch.crates-io]
+# ibc proto
+ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branch = "v0.38.0-octopus"}
+# ibc
+ibc-core = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "v0.48.1-octopus" }
 
-[dependencies]
-ibc = { version = "0.42.0", features = ["parity-scale-codec", "borsh"], default-features = false }
-ibc-proto = { version = "0.32.0", features = ["parity-scale-codec", "borsh"], default-features = false }
-prost = { version = "0.11", default-features = false }
+[workspace.dependencies]
+borsh = { version = "1.0", default-features = false, features = ["derive"] }
+bytes = { version = "1.5.0", default-features = false }
 displaydoc = { version = "0.2", default-features = false }
-bytes = { version = "1.2.1", default-features = false }
+prost = { version = "0.12", default-features = false }
 serde = { version = "1.0", default-features = false }
-sha2 = { version = "0.10.6", default-features = false }
-borsh = { version = "0.9" }
+serde_json = { package = "serde-json-wasm", version = "1.0.0" , default-features = false }
+subtle-encoding     = { version = "0.5", default-features = false }
+k256 = { version = "0.13", features = ["ecdsa", "sha256"], default-features = false }
 elastic-array = { version = "0.11", default-features = false }
+sha2 = { version = "0.10.6", default-features = false }
 bs58 = { version = "0.4" }
 byteorder = { version = "1.4" }
 ed25519-dalek = { version = "1" }
 
-[dev-dependencies]
-hex-literal = "0.4"
 
-[features]
-default = ["std", "v1", "serde"]
-std = [
-    "ibc/std",
-    "ibc-proto/std",
-    "prost/std",
-    "displaydoc/std",
-    "bytes/std",
-    "serde/std",
-]
-v1 = []
-serde = ["serde/std", "ibc/serde"]
+ibc-core    = { version = "0.48.1", default-features = false, features = ["parity-scale-codec", "borsh", "serde"] }
+ibc-proto   = { version = "0.38.0", default-features = false, features = ["parity-scale-codec", "borsh", "serde"] }
 
-[patch.crates-io]
-ibc = { git = "https://github.com/octopus-network/ibc-rs.git", branch = "octopus-relayer-v0.42.0" }
-ibc-proto = { git = "https://github.com/octopus-network/ibc-proto-rs.git", branch = "octopus-relauer-v0.32.0-with-ics12-near" }
+tendermint = { version = "0.34.0", default-features = false, features = ["secp256k1", "rust-crypto"] }
+tendermint-proto = { version = "0.34.0", default-features = false }
+
+# parity dependencies
+parity-scale-codec = { version = "3.6.5", default-features = false, features = ["full"] }
+scale-info = { version = "2.10.0", default-features = false, features = ["derive"] }
+
+ics12-near-types = { version = "0.1.0", path = "crates/ics12-near/types", default-features = false }
+ics12-proto = { version = "0.1.3", default-features = false }

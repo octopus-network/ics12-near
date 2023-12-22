@@ -1,17 +1,12 @@
-//! Defines the Tendermint light client's error type
-#[cfg(feature = "std")]
-extern crate std;
+//! Defines the near light client's error type
 
-use crate::prelude::*;
+use alloc::string::String;
+use alloc::string::ToString;
 use core::time::Duration;
 use displaydoc::Display;
-use ibc::{
-    core::{
-        ics02_client::error::ClientError,
-        ics24_host::identifier::{ChainId, ClientId},
-    },
-    Height,
-};
+use ibc_core::client::types::error::ClientError;
+use ibc_core::client::types::Height;
+use ibc_core::host::types::identifiers::{ChainId, ClientId};
 
 /// The main error type
 #[derive(Debug, Display)]

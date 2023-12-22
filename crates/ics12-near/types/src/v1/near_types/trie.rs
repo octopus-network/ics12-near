@@ -3,12 +3,9 @@ pub mod nibble_slice;
 use self::nibble_slice::NibbleSlice;
 use super::super::error::Error as StateProofVerificationError;
 use super::{hash::sha256, CryptoHash};
-use alloc::vec::Vec;
-use borsh::maybestd::{
-    io::{Cursor, Error, ErrorKind, Read},
-    vec,
-};
-use byteorder::{LittleEndian, ReadBytesExt};
+use alloc::{vec, vec::Vec};
+use borsh::io::{Error, ErrorKind, Read};
+use byteorder::{ByteOrder, LittleEndian};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RawTrieNodeWithSize {
@@ -29,15 +26,18 @@ const BRANCH_NODE_NO_VALUE: u8 = 1;
 const BRANCH_NODE_WITH_VALUE: u8 = 2;
 const EXTENSION_NODE: u8 = 3;
 
-fn decode_children(cursor: &mut Cursor<&[u8]>) -> Result<[Option<CryptoHash>; 16], Error> {
+fn decode_children(bytes: &[u8]) -> Result<[Option<CryptoHash>; 16], Error> {
+    let mut cursor = bytes;
     let mut children: [Option<CryptoHash>; 16] = Default::default();
-    let bitmap = cursor.read_u16::<LittleEndian>()?;
+    let mut two_bytes: [u8; 2] = [0; 2];
+    cursor.read_exact(&mut two_bytes)?;
+    let bitmap = LittleEndian::read_u16(&two_bytes);
     let mut pos = 1;
     for child in &mut children {
         if bitmap & pos != 0 {
             let mut arr = [0; 32];
             cursor.read_exact(&mut arr)?;
-            *child = Some(CryptoHash::try_from(&arr[..]).unwrap());
+            *child = Some(CryptoHash::try_from(&arr[..]).expect("never failed"));
         }
         pos <<= 1;
     }
@@ -89,45 +89,52 @@ impl RawTrieNode {
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, Error> {
-        let mut cursor = Cursor::new(bytes);
-        match cursor.read_u8()? {
+        let mut cursor = bytes;
+        let mut one_byte: [u8; 1] = [0; 1];
+        cursor.read_exact(&mut one_byte)?;
+        match one_byte[0] {
             LEAF_NODE => {
-                let key_length = cursor.read_u32::<LittleEndian>()?;
+                let mut four_bytes: [u8; 4] = [0; 4];
+                cursor.read_exact(&mut four_bytes)?;
+                let key_length = LittleEndian::read_u32(&four_bytes);
                 let mut key = vec![0; key_length as usize];
                 cursor.read_exact(&mut key)?;
-                let value_length = cursor.read_u32::<LittleEndian>()?;
+                let mut four_bytes: [u8; 4] = [0; 4];
+                cursor.read_exact(&mut four_bytes)?;
+                let value_length = LittleEndian::read_u32(&four_bytes);
                 let mut arr = [0; 32];
                 cursor.read_exact(&mut arr)?;
                 let value_hash = CryptoHash(arr);
                 Ok(RawTrieNode::Leaf(key, value_length, value_hash))
             }
             BRANCH_NODE_NO_VALUE => {
-                let children = decode_children(&mut cursor)?;
+                let children = decode_children(cursor)?;
                 Ok(RawTrieNode::Branch(children, None))
             }
             BRANCH_NODE_WITH_VALUE => {
-                let value_length = cursor.read_u32::<LittleEndian>()?;
+                let mut four_bytes: [u8; 4] = [0; 4];
+                cursor.read_exact(&mut four_bytes)?;
+                let value_length = LittleEndian::read_u32(&four_bytes);
                 let mut arr = [0; 32];
                 cursor.read_exact(&mut arr)?;
                 let value_hash = CryptoHash(arr);
-                let children = decode_children(&mut cursor)?;
+                let children = decode_children(cursor)?;
                 Ok(RawTrieNode::Branch(
                     children,
                     Some((value_length, value_hash)),
                 ))
             }
             EXTENSION_NODE => {
-                let key_length = cursor.read_u32::<LittleEndian>()?;
+                let mut four_bytes: [u8; 4] = [0; 4];
+                cursor.read_exact(&mut four_bytes)?;
+                let key_length = LittleEndian::read_u32(&four_bytes);
                 let mut key = vec![0; key_length as usize];
                 cursor.read_exact(&mut key)?;
                 let mut child = [0; 32];
                 cursor.read_exact(&mut child)?;
                 Ok(RawTrieNode::Extension(key, CryptoHash(child)))
             }
-            _ => Err(Error::new(
-                borsh::maybestd::io::ErrorKind::Other,
-                "Wrong type",
-            )),
+            _ => Err(Error::new(ErrorKind::Other, "Wrong type")),
         }
     }
 }

@@ -1,9 +1,11 @@
-use super::{super::misbehaviour::Misbehaviour as NearMisbehaviour, ClientState};
-use crate::prelude::*;
-use crate::v1::ValidationContext as NearValidationContext;
-use ibc::core::{ics02_client::error::ClientError, ics24_host::identifier::ClientId};
+use super::ClientState as NearClientState;
+use crate::v1::context::ValidationContext as NearValidationContext;
+use ibc_core::client::types::error::ClientError;
+use ibc_core::host::types::identifiers::ClientId;
+// use ics12_near_types::v1::consensus_state::ConsensusState as NearConsensusState;
+use ics12_near_types::v1::misbehaviour::Misbehaviour as NearMisbehaviour;
 
-impl ClientState {
+impl NearClientState {
     // verify_misbehaviour determines whether or not two conflicting headers at
     // the same height would have convinced the light client.
     pub fn verify_misbehaviour<ClientValidationContext>(

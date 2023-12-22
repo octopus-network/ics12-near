@@ -3,19 +3,15 @@ use super::{
     header::Header,
     near_types::{hash::CryptoHash, ValidatorStakeView},
 };
-use crate::prelude::*;
+use alloc::string::ToString;
 use alloc::vec::Vec;
-use borsh::{BorshDeserialize, BorshSerialize};
-use ibc::core::{
-    ics02_client::error::ClientError, ics23_commitment::commitment::CommitmentRoot,
-    timestamp::Timestamp,
-};
-use ibc_proto::{
-    google::protobuf::Any,
-    ibc::lightclients::near::v1::{
-        ConsensusState as RawConsensusState, ValidatorStakeView as RawValidatorStakeView,
-    },
-    protobuf::Protobuf,
+use borsh::to_vec;
+use borsh::BorshDeserialize;
+use ibc_core::client::types::error::ClientError;
+use ibc_core::commitment_types::commitment::CommitmentRoot;
+use ibc_proto::{google::protobuf::Any, Protobuf};
+use ics12_proto::v1::{
+    ConsensusState as RawConsensusState, ValidatorStakeView as RawValidatorStakeView,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -36,17 +32,13 @@ pub struct ConsensusState {
 impl ConsensusState {
     ///
     pub fn new(current_bps: Option<Vec<ValidatorStakeView>>, header: Header) -> Self {
-        let mut data = current_bps
-            .try_to_vec()
-            .expect("Failed to serialize current bps.");
-        data.extend(header.try_to_vec().expect("Failed to serialize header."));
+        let mut data = to_vec(&current_bps).expect("Failed to serialize current bps.");
+        data.extend(to_vec(&header).expect("Failed to serialize header."));
         Self {
             current_bps,
             header: header.clone(),
             commitment_root: CommitmentRoot::from(
-                header
-                    .prev_state_root_of_chunks
-                    .try_to_vec()
+                to_vec(&header.prev_state_root_of_chunks)
                     .expect("Failed to serialize `prev_state_root_of_chunks` of header."),
             ),
         }
@@ -60,23 +52,6 @@ impl ConsensusState {
         } else {
             return None;
         }
-    }
-}
-
-impl ibc::core::ics02_client::consensus_state::ConsensusState for ConsensusState {
-    fn root(&self) -> &CommitmentRoot {
-        &self.commitment_root
-    }
-
-    fn timestamp(&self) -> Timestamp {
-        Timestamp::from_nanoseconds(self.header.raw_timestamp()).expect("Invalid timestamp")
-    }
-
-    /// Serializes the `ConsensusState`. This is expected to be implemented as
-    /// first converting to the raw type (i.e. the protobuf definition), and then
-    /// serializing that.
-    fn encode_vec(&self) -> Vec<u8> {
-        <Self as Protobuf<Any>>::encode_vec(self)
     }
 }
 
@@ -111,7 +86,7 @@ impl From<ConsensusState> for RawConsensusState {
                 Some(bps) => bps
                     .into_iter()
                     .map(|vsv| RawValidatorStakeView {
-                        raw_data: vsv.try_to_vec().unwrap(),
+                        raw_data: to_vec(&vsv).expect("never failed"),
                     })
                     .collect(),
             },
@@ -150,7 +125,7 @@ impl From<ConsensusState> for Any {
     fn from(consensus_state: ConsensusState) -> Self {
         Any {
             type_url: NEAR_CONSENSUS_STATE_TYPE_URL.to_string(),
-            value: Protobuf::<RawConsensusState>::encode_vec(&consensus_state),
+            value: Protobuf::<RawConsensusState>::encode_vec(consensus_state),
         }
     }
 }

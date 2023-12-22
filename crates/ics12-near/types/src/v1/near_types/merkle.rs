@@ -1,6 +1,7 @@
 use super::hash::{combine_hash, CryptoHash};
+use alloc::vec;
 use alloc::vec::Vec;
-use borsh::{maybestd::vec, BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Hash used by a struct implementing the Merkle tree.
 pub type MerkleHash = CryptoHash;

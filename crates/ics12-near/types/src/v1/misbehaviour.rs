@@ -1,11 +1,10 @@
 use super::{error::Error, header::Header as NearHeader};
-use crate::prelude::*;
+use alloc::string::ToString;
 use bytes::Buf;
-use ibc::core::{ics02_client::error::ClientError, ics24_host::identifier::ClientId};
-use ibc_proto::{
-    google::protobuf::Any, ibc::lightclients::near::v1::Misbehaviour as RawMisbehaviour,
-    protobuf::Protobuf,
-};
+use ibc_core::client::types::error::ClientError;
+use ibc_core::host::types::identifiers::ClientId;
+use ibc_proto::{google::protobuf::Any, Protobuf};
+use ics12_proto::v1::Misbehaviour as RawMisbehaviour;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
@@ -110,7 +109,7 @@ impl From<Misbehaviour> for Any {
     fn from(misbehaviour: Misbehaviour) -> Self {
         Any {
             type_url: NEAR_MISBEHAVIOUR_TYPE_URL.to_string(),
-            value: Protobuf::<RawMisbehaviour>::encode_vec(&misbehaviour),
+            value: Protobuf::<RawMisbehaviour>::encode_vec(misbehaviour),
         }
     }
 }
