@@ -36,8 +36,8 @@ impl ClientState {
 
         let approval_message = header.light_client_block.approval_message();
 
-        // Check the height of the block is higher than the height of the current head.
-        if header.height() <= latest_header.height() {
+        // Check the height of the block is in the same epoch with the current head.
+        if header.height().add(43200) <= latest_header.height() {
             return Err(ClientError::Other {
                 description: "Header is too old.".to_string(),
             });
